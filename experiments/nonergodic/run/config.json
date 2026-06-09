@@ -1,0 +1,28 @@
+{
+  "batch_size": 256,
+  "comp_params": [
+    [
+      0.05,
+      0.05
+    ],
+    [
+      0.9,
+      0.15
+    ]
+  ],
+  "d_mlp": 256,
+  "d_model": 64,
+  "epochs": 25,
+  "lr": 0.001,
+  "n_heads": 1,
+  "n_states": 3,
+  "n_train": 40000,
+  "n_val": 4000,
+  "pi_prior": [
+    0.5,
+    0.5
+  ],
+  "seed": 0,
+  "seq_len": 16,
+  "vocab": 3
+}
