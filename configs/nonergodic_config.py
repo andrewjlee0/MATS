@@ -7,15 +7,15 @@ class NonergodicConfig:
     pi_prior    = [0.5, 0.5]                      # generative prior over components
     vocab       = 3
     n_states    = 3
-    seq_len     = 16
+    seq_len     = 100
     n_train     = 40000
     n_val       = 4000
     # model
-    d_model     = 64
+    d_model     = 128
     d_mlp       = 256
     n_heads     = 1
     # train
-    epochs      = 25
+    epochs      = 100
     batch_size  = 256
     lr          = 1e-3
     seed        = 0
