@@ -16,7 +16,7 @@ class NonergodicConfig:
     n_heads     = 1
     # train
     epochs      = 100
-    batch_size  = 256
+    batch_size  = 4096   # large batch is the main GPU-throughput lever for a tiny model
     lr          = 1e-3
     seed        = 0
 
