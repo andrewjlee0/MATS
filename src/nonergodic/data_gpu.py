@@ -19,31 +19,22 @@ def _to_dev(T_stack, pis, cfg, device):
 
 
 def sample_sequences_gpu(cfg, T_stack, pis, comps, device, seed=0):
-    """Vectorized HMM sampling on the GPU.
-
-    comps: (N,) int64 component index per sequence (tensor or array).
-    Returns (N, seq_len) int64 token tensor on `device`. Loops over positions
-    (sequential dependency) but samples all N sequences in parallel each step.
-    """
     g = torch.Generator(device=device).manual_seed(seed)
     comps = torch.as_tensor(comps, dtype=torch.long, device=device)
     N, L, S, V = len(comps), cfg.seq_len, cfg.n_states, cfg.vocab
-
-    T, pi = _to_dev(T_stack, pis, cfg, device)           # (K,V,S,S), (K,S)
-    Tc = T[comps]                                        # (N, V, S, S) per-seq
+    T, pi = _to_dev(T_stack, pis, cfg, device)
+    Tc = T[comps]                       # (N, V, S, S)
     ar = torch.arange(N, device=device)
-
     state = torch.multinomial(pi[comps], 1, generator=g).squeeze(1)   # (N,)
     tokens = torch.empty(N, L, dtype=torch.long, device=device)
-
     for t in range(L):
-        # P(token, next_state | state): gather current-state slice -> (N, V, S)
-        row = Tc[ar[:, None], torch.arange(V, device=device)[None, :], state]  # (N,V,S)
-        tok_p = row.sum(-1)                              # (N, V)  P(token | state)
+        # slice each seq's current-state row: Tc[n, :, state[n], :] -> (N, V, S)
+        row = Tc[ar, :, state, :]                      # (N, V, S)
+        tok_p = row.sum(-1)                            # (N, V)
         tok_p = tok_p / tok_p.sum(-1, keepdim=True)
         z = torch.multinomial(tok_p, 1, generator=g).squeeze(1)       # (N,)
         tokens[:, t] = z
-        nsp = Tc[ar, z, state]                           # (N, S)  next-state dist
+        nsp = Tc[ar, z, state, :]                      # (N, S)
         nsp = nsp / nsp.sum(-1, keepdim=True)
         state = torch.multinomial(nsp, 1, generator=g).squeeze(1)
     return tokens
