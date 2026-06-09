@@ -1,88 +1,81 @@
 """GPU-vectorized HMM sampling and Bayesian filtering for the non-ergodic
-Mess3 experiment. Mirrors data.py but runs the per-position loops as batched
-tensor ops on the GPU (all sequences advanced in parallel each step).
+Mess3 experiment. All sequences advanced in parallel each position.
 
-Use these in train.py to keep the whole pre-training phase on the GPU.
-The numpy versions in data.py are kept for compatibility with other code.
+The filter renormalizes the forward vector every step (and runs in float64)
+so it cannot underflow to zero/nan over long sequences.
 """
 import numpy as np
 import torch
 
 
-def _to_dev(T_stack, pis, cfg, device):
+def _to_dev(T_stack, pis, cfg, device, dtype=torch.float32):
     K = len(cfg.comp_params)
-    T = torch.stack([torch.as_tensor(T_stack[k], dtype=torch.float32, device=device)
-                     for k in range(K)])               # (K, V, S, S)
-    pi = torch.stack([torch.as_tensor(pis[k], dtype=torch.float32, device=device)
-                      for k in range(K)])               # (K, S)
+    T = torch.stack([torch.as_tensor(T_stack[k], dtype=dtype, device=device)
+                     for k in range(K)])
+    pi = torch.stack([torch.as_tensor(pis[k], dtype=dtype, device=device)
+                      for k in range(K)])
     return T, pi
 
 
 def sample_sequences_gpu(cfg, T_stack, pis, comps, device, seed=0):
+    """Vectorized HMM sampling on the GPU. comps: (N,) int component indices.
+    Returns (N, seq_len) int64 token tensor on `device`."""
     g = torch.Generator(device=device).manual_seed(seed)
     comps = torch.as_tensor(comps, dtype=torch.long, device=device)
     N, L, S, V = len(comps), cfg.seq_len, cfg.n_states, cfg.vocab
     T, pi = _to_dev(T_stack, pis, cfg, device)
-    Tc = T[comps]                       # (N, V, S, S)
+    Tc = T[comps]                                   # (N, V, S, S)
     ar = torch.arange(N, device=device)
-    state = torch.multinomial(pi[comps], 1, generator=g).squeeze(1)   # (N,)
+    state = torch.multinomial(pi[comps], 1, generator=g).squeeze(1)
     tokens = torch.empty(N, L, dtype=torch.long, device=device)
     for t in range(L):
-        # slice each seq's current-state row: Tc[n, :, state[n], :] -> (N, V, S)
-        row = Tc[ar, :, state, :]                      # (N, V, S)
-        tok_p = row.sum(-1)                            # (N, V)
+        row = Tc[ar, :, state, :]                   # (N, V, S)
+        tok_p = row.sum(-1)                         # (N, V)
         tok_p = tok_p / tok_p.sum(-1, keepdim=True)
-        z = torch.multinomial(tok_p, 1, generator=g).squeeze(1)       # (N,)
+        z = torch.multinomial(tok_p, 1, generator=g).squeeze(1)
         tokens[:, t] = z
-        nsp = Tc[ar, z, state, :]                      # (N, S)
+        nsp = Tc[ar, z, state, :]                   # (N, S)
         nsp = nsp / nsp.sum(-1, keepdim=True)
         state = torch.multinomial(nsp, 1, generator=g).squeeze(1)
     return tokens
 
 
 def all_telescoped_gpu(cfg, T_stack, pis, M_comp, seqs, device):
-    """GPU Bayesian filter over all components for a batch of sequences.
-
-    seqs: (N, L) int64 (tensor or array).  Returns numpy arrays matching
+    """GPU Bayesian filter over all components. Returns numpy arrays matching
     data.all_telescoped: telescoped (N,L,K*S), ntp (N,L,V), weights (N,L,K),
-    local (N,L,K,S). Advances all sequences in parallel per position.
-    """
+    local (N,L,K,S). float64 + per-step renormalization to avoid underflow."""
+    dt = torch.float64
     seqs = torch.as_tensor(seqs, dtype=torch.long, device=device)
     N, L, S, V = seqs.shape[0], cfg.seq_len, cfg.n_states, cfg.vocab
     K = len(cfg.comp_params)
 
-    T, pi = _to_dev(T_stack, pis, cfg, device)           # (K,V,S,S), (K,S)
-    M = torch.stack([torch.as_tensor(M_comp[k], dtype=torch.float32, device=device)
-                     for k in range(K)])                 # (K, S, V)
-    prior = torch.tensor(cfg.pi_prior, dtype=torch.float32, device=device)  # (K,)
+    T, pi = _to_dev(T_stack, pis, cfg, device, dtype=dt)
+    M = torch.stack([torch.as_tensor(M_comp[k], dtype=dt, device=device)
+                     for k in range(K)])            # (K, S, V)
+    prior = torch.tensor(cfg.pi_prior, dtype=dt, device=device)
 
-    # unnormalized forward vector a[k] per sequence: (N, K, S)
-    a = pi[None].expand(N, K, S) * prior[None, :, None]
-    a = a.clone()
+    a = (pi[None].expand(N, K, S) * prior[None, :, None]).clone()   # (N, K, S)
 
-    tel = torch.empty(N, L, K*S, device=device)
-    ntp = torch.empty(N, L, V, device=device)
-    wts = torch.empty(N, L, K, device=device)
-    loc = torch.empty(N, L, K, S, device=device)
+    tel = torch.empty(N, L, K*S, dtype=dt, device=device)
+    ntp = torch.empty(N, L, V, dtype=dt, device=device)
+    wts = torch.empty(N, L, K, dtype=dt, device=device)
+    loc = torch.empty(N, L, K, S, dtype=dt, device=device)
 
     for t in range(L):
-        x = seqs[:, t]                                   # (N,)
-        # a[n,k,:] = a[n,k,:] @ T[k, x_n]   (per-seq token-specific transition)
-        Tx = T[:, x]                                     # (K, N, S, S)
-        Tx = Tx.permute(1, 0, 2, 3)                      # (N, K, S, S)
-        a = torch.einsum('nks,nksd->nkd', a, Tx)         # (N, K, S)
-        Z = a.reshape(N, -1).sum(-1, keepdim=True)       # (N, 1) global norm
-        blk = a / Z[:, None]                             # (N, K, S) telescoped blocks
-        w = blk.sum(-1)                                  # (N, K) weights
-        eta = blk / w.clamp_min(1e-12)[..., None]        # (N, K, S) local beliefs
-        # optimal NTP = sum_k blk[n,k] @ M[k]
-        p = torch.einsum('nks,ksv->nv', blk, M)          # (N, V)
-        p = p / p.sum(-1, keepdim=True)
-
+        x = seqs[:, t]
+        Tx = T[:, x].permute(1, 0, 2, 3)            # (N, K, S, S)
+        a = torch.einsum('nks,nksd->nkd', a, Tx)    # (N, K, S)
+        Z = a.reshape(N, -1).sum(-1, keepdim=True).clamp_min(1e-300)
+        a = a / Z[:, None]                          # carry NORMALIZED vector forward
+        blk = a                                     # globally normalized (sum=1)
+        w = blk.sum(-1)
+        eta = blk / w.clamp_min(1e-30)[..., None]
+        p = torch.einsum('nks,ksv->nv', blk, M)
+        p = p / p.sum(-1, keepdim=True).clamp_min(1e-300)
         tel[:, t] = blk.reshape(N, K*S)
         ntp[:, t] = p
         wts[:, t] = w
         loc[:, t] = eta
 
-    return (tel.cpu().numpy(), ntp.cpu().numpy(),
-            wts.cpu().numpy(), loc.cpu().numpy())
+    return (tel.float().cpu().numpy(), ntp.float().cpu().numpy(),
+            wts.float().cpu().numpy(), loc.float().cpu().numpy())
