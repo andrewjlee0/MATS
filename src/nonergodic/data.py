@@ -10,10 +10,10 @@ def build_hmms(cfg):
     """Per-component transition stacks, stationary dists, emission matrices,
     and the block-diagonal emission [M_1 ; ... ; M_K]."""
     T_mats = [mess3_matrices(a, x) for (a, x) in cfg.comp_params]
-    T_stack = [np.stack(Tm) for Tm in T_mats]
-    pis = [stationary_distribution(Tm) for Tm in T_mats]
-    M_comp = [emission_matrix(Tm) for Tm in T_mats]
-    M_block = np.vstack(M_comp)
+    T_stack = [np.stack(Tm) for Tm in T_mats]                 # each (vocab, S, S)
+    pis = [stationary_distribution(Tm) for Tm in T_mats]      # each (S,)
+    M_comp = [emission_matrix(Tm) for Tm in T_mats]           # each (S, vocab)
+    M_block = np.vstack(M_comp)                               # (K*S, vocab)
     return T_mats, T_stack, pis, M_comp, M_block
 
 
@@ -30,12 +30,18 @@ def make_dataset(cfg, T_mats, pis, n_seqs, seed0):
 
 
 def telescoped_beliefs(cfg, T_stack, pis, M_comp, tokens):
-    """For one token sequence, per position: telescoped blocks (L, K*S),
-    optimal NTP (L, vocab), posterior weights (L, K), local beliefs (L, K, S)."""
+    """For one token sequence, return per position:
+      tel     (L, K*S)   telescoped blocks w_n * eta_n  (global belief)
+      ntp     (L, vocab) Bayes-optimal next-token distribution
+      weights (L, K)     posterior component weights w_n
+      local   (L, K, S)  normalized within-component beliefs eta_n
+    """
     K, S, L = len(cfg.comp_params), cfg.n_states, cfg.seq_len
     a = [pis[n].copy() * cfg.pi_prior[n] for n in range(K)]
-    tel = np.zeros((L, K * S)); ntp = np.zeros((L, cfg.vocab))
-    weights = np.zeros((L, K)); local = np.zeros((L, K, S))
+    tel = np.zeros((L, K * S))
+    ntp = np.zeros((L, cfg.vocab))
+    weights = np.zeros((L, K))
+    local = np.zeros((L, K, S))
     for t in range(L):
         for n in range(K):
             a[n] = a[n] @ T_stack[n][tokens[t]]
