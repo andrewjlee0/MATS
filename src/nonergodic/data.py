@@ -1,97 +1,62 @@
-"""GPU-vectorized HMM sampling and Bayesian filtering for the non-ergodic
-Mess3 experiment. Mirrors data.py but runs the per-position loops as batched
-tensor ops on the GPU (all sequences advanced in parallel each step).
-
-Use these in train.py to keep the whole pre-training phase on the GPU.
-The numpy versions in data.py are kept for compatibility with other code.
-"""
+"""HMM construction, dataset sampling, and ground-truth telescoped beliefs
+for the non-ergodic Mess3 mixture."""
 import numpy as np
-import torch
+
+from src.hmm.definitions import mess3_matrices
+from src.hmm.core import stationary_distribution, sample_hmm_sequence, emission_matrix
 
 
-def _to_dev(T_stack, pis, cfg, device):
-    K = len(cfg.comp_params)
-    T = torch.stack([torch.as_tensor(T_stack[k], dtype=torch.float32, device=device)
-                     for k in range(K)])               # (K, V, S, S)
-    pi = torch.stack([torch.as_tensor(pis[k], dtype=torch.float32, device=device)
-                      for k in range(K)])               # (K, S)
-    return T, pi
+def build_hmms(cfg):
+    """Per-component transition stacks, stationary dists, emission matrices,
+    and the block-diagonal emission [M_1 ; ... ; M_K]."""
+    T_mats = [mess3_matrices(a, x) for (a, x) in cfg.comp_params]
+    T_stack = [np.stack(Tm) for Tm in T_mats]
+    pis = [stationary_distribution(Tm) for Tm in T_mats]
+    M_comp = [emission_matrix(Tm) for Tm in T_mats]
+    M_block = np.vstack(M_comp)
+    return T_mats, T_stack, pis, M_comp, M_block
 
 
-def sample_sequences_gpu(cfg, T_stack, pis, comps, device, seed=0):
-    """Vectorized HMM sampling on the GPU.
+def make_dataset(cfg, T_mats, pis, n_seqs, seed0):
+    """Each sequence is generated entirely by one component, chosen by pi_prior."""
+    rng = np.random.default_rng(seed0)
+    seqs = np.zeros((n_seqs, cfg.seq_len), dtype=np.int64)
+    comps = np.zeros(n_seqs, dtype=np.int64)
+    for i in range(n_seqs):
+        c = rng.choice(len(cfg.comp_params), p=cfg.pi_prior)
+        comps[i] = c
+        seqs[i] = sample_hmm_sequence(T_mats[c], pis[c], cfg.seq_len, seed=seed0 + i + 1)
+    return seqs, comps
 
-    comps: (N,) int64 component index per sequence (tensor or array).
-    Returns (N, seq_len) int64 token tensor on `device`. Loops over positions
-    (sequential dependency) but samples all N sequences in parallel each step.
-    """
-    g = torch.Generator(device=device).manual_seed(seed)
-    comps = torch.as_tensor(comps, dtype=torch.long, device=device)
-    N, L, S, V = len(comps), cfg.seq_len, cfg.n_states, cfg.vocab
 
-    T, pi = _to_dev(T_stack, pis, cfg, device)           # (K,V,S,S), (K,S)
-    Tc = T[comps]                                        # (N, V, S, S) per-seq
-    ar = torch.arange(N, device=device)
-
-    state = torch.multinomial(pi[comps], 1, generator=g).squeeze(1)   # (N,)
-    tokens = torch.empty(N, L, dtype=torch.long, device=device)
-
+def telescoped_beliefs(cfg, T_stack, pis, M_comp, tokens):
+    """For one token sequence, per position: telescoped blocks (L, K*S),
+    optimal NTP (L, vocab), posterior weights (L, K), local beliefs (L, K, S)."""
+    K, S, L = len(cfg.comp_params), cfg.n_states, cfg.seq_len
+    a = [pis[n].copy() * cfg.pi_prior[n] for n in range(K)]
+    tel = np.zeros((L, K * S)); ntp = np.zeros((L, cfg.vocab))
+    weights = np.zeros((L, K)); local = np.zeros((L, K, S))
     for t in range(L):
-        # P(token, next_state | state): gather current-state slice -> (N, V, S)
-        row = Tc[ar[:, None], torch.arange(V, device=device)[None, :], state]  # (N,V,S)
-        tok_p = row.sum(-1)                              # (N, V)  P(token | state)
-        tok_p = tok_p / tok_p.sum(-1, keepdim=True)
-        z = torch.multinomial(tok_p, 1, generator=g).squeeze(1)       # (N,)
-        tokens[:, t] = z
-        nsp = Tc[ar, z, state]                           # (N, S)  next-state dist
-        nsp = nsp / nsp.sum(-1, keepdim=True)
-        state = torch.multinomial(nsp, 1, generator=g).squeeze(1)
-    return tokens
+        for n in range(K):
+            a[n] = a[n] @ T_stack[n][tokens[t]]
+        Z = sum(a[n].sum() for n in range(K))
+        p = np.zeros(cfg.vocab)
+        for n in range(K):
+            blk = a[n] / Z
+            tel[t, n*S:(n+1)*S] = blk
+            w = blk.sum()
+            weights[t, n] = w
+            local[t, n] = blk / w if w > 1e-12 else blk
+            p += blk @ M_comp[n]
+        ntp[t] = p / p.sum()
+    return tel, ntp, weights, local
 
 
-def all_telescoped_gpu(cfg, T_stack, pis, M_comp, seqs, device):
-    """GPU Bayesian filter over all components for a batch of sequences.
-
-    seqs: (N, L) int64 (tensor or array).  Returns numpy arrays matching
-    data.all_telescoped: telescoped (N,L,K*S), ntp (N,L,V), weights (N,L,K),
-    local (N,L,K,S). Advances all sequences in parallel per position.
-    """
-    seqs = torch.as_tensor(seqs, dtype=torch.long, device=device)
-    N, L, S, V = seqs.shape[0], cfg.seq_len, cfg.n_states, cfg.vocab
-    K = len(cfg.comp_params)
-
-    T, pi = _to_dev(T_stack, pis, cfg, device)           # (K,V,S,S), (K,S)
-    M = torch.stack([torch.as_tensor(M_comp[k], dtype=torch.float32, device=device)
-                     for k in range(K)])                 # (K, S, V)
-    prior = torch.tensor(cfg.pi_prior, dtype=torch.float32, device=device)  # (K,)
-
-    # unnormalized forward vector a[k] per sequence: (N, K, S)
-    a = pi[None].expand(N, K, S) * prior[None, :, None]
-    a = a.clone()
-
-    tel = torch.empty(N, L, K*S, device=device)
-    ntp = torch.empty(N, L, V, device=device)
-    wts = torch.empty(N, L, K, device=device)
-    loc = torch.empty(N, L, K, S, device=device)
-
-    for t in range(L):
-        x = seqs[:, t]                                   # (N,)
-        # a[n,k,:] = a[n,k,:] @ T[k, x_n]   (per-seq token-specific transition)
-        Tx = T[:, x]                                     # (K, N, S, S)
-        Tx = Tx.permute(1, 0, 2, 3)                      # (N, K, S, S)
-        a = torch.einsum('nks,nksd->nkd', a, Tx)         # (N, K, S)
-        Z = a.reshape(N, -1).sum(-1, keepdim=True)       # (N, 1) global norm
-        blk = a / Z[:, None]                             # (N, K, S) telescoped blocks
-        w = blk.sum(-1)                                  # (N, K) weights
-        eta = blk / w.clamp_min(1e-12)[..., None]        # (N, K, S) local beliefs
-        # optimal NTP = sum_k blk[n,k] @ M[k]
-        p = torch.einsum('nks,ksv->nv', blk, M)          # (N, V)
-        p = p / p.sum(-1, keepdim=True)
-
-        tel[:, t] = blk.reshape(N, K*S)
-        ntp[:, t] = p
-        wts[:, t] = w
-        loc[:, t] = eta
-
-    return (tel.cpu().numpy(), ntp.cpu().numpy(),
-            wts.cpu().numpy(), loc.cpu().numpy())
+def all_telescoped(cfg, T_stack, pis, M_comp, seqs):
+    K, S, L = len(cfg.comp_params), cfg.n_states, cfg.seq_len
+    N = len(seqs)
+    tel = np.zeros((N, L, K*S)); ntp = np.zeros((N, L, cfg.vocab))
+    wts = np.zeros((N, L, K)); loc = np.zeros((N, L, K, S))
+    for i, s in enumerate(seqs):
+        tel[i], ntp[i], wts[i], loc[i] = telescoped_beliefs(cfg, T_stack, pis, M_comp, s)
+    return tel, ntp, wts, loc
