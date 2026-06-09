@@ -23,7 +23,8 @@ if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
 from configs.nonergodic_config import NonergodicConfig as Config
-from src.nonergodic import TinyTransformer, build_hmms, make_dataset, all_telescoped
+from src.nonergodic import (TinyTransformer, build_hmms, make_dataset, all_telescoped,
+                            sample_sequences_gpu, all_telescoped_gpu)
 
 OUT = os.path.join(_HERE, "run")
 os.makedirs(OUT, exist_ok=True)
@@ -57,19 +58,30 @@ np.savez(os.path.join(OUT, "hmm.npz"),
          M_comp=np.array(M_comp), M_block=M_block,
          comp_params=np.array(cfg.comp_params), pi_prior=np.array(cfg.pi_prior))
 
-# ── data ──
-train_seqs, train_comps = make_dataset(cfg, T_mats, pis, cfg.n_train, 0)
-val_seqs, val_comps = make_dataset(cfg, T_mats, pis, cfg.n_val, 10_000_000)
+# ── data (sampled on the GPU when available, else CPU numpy) ──
+if USE_CUDA:
+    g = torch.Generator(device=DEV).manual_seed(cfg.seed)
+    train_comps_t = torch.randint(0, len(cfg.comp_params), (cfg.n_train,), generator=g, device=DEV)
+    val_comps_t   = torch.randint(0, len(cfg.comp_params), (cfg.n_val,), generator=g, device=DEV)
+    train_t = sample_sequences_gpu(cfg, T_stack, pis, train_comps_t, DEV, seed=cfg.seed)
+    val_t   = sample_sequences_gpu(cfg, T_stack, pis, val_comps_t, DEV, seed=cfg.seed + 1)
+    train_seqs = train_t.cpu().numpy(); train_comps = train_comps_t.cpu().numpy()
+    val_seqs = val_t.cpu().numpy(); val_comps = val_comps_t.cpu().numpy()
+else:
+    train_seqs, train_comps = make_dataset(cfg, T_mats, pis, cfg.n_train, 0)
+    val_seqs, val_comps = make_dataset(cfg, T_mats, pis, cfg.n_val, 10_000_000)
+    train_t = torch.from_numpy(train_seqs).to(DEV)
+    val_t = torch.from_numpy(val_seqs).to(DEV)
+
 np.savez(os.path.join(OUT, "val_data.npz"), val_seqs=val_seqs, val_comps=val_comps,
          train_seqs=train_seqs[:2000], train_comps=train_comps[:2000])
 
-# whole dataset on the GPU once (40000*100 int64 ~ 32 MB — trivial)
-train_t = torch.from_numpy(train_seqs).to(DEV)
-val_t = torch.from_numpy(val_seqs).to(DEV)
-
-# ── ground truth (CPU numpy; one-time) ──
+# ── ground truth (GPU Bayesian filter when available) ──
 print("Computing ground-truth telescoped beliefs...")
-tel, ntp, wts, loc = all_telescoped(cfg, T_stack, pis, M_comp, val_seqs)
+if USE_CUDA:
+    tel, ntp, wts, loc = all_telescoped_gpu(cfg, T_stack, pis, M_comp, val_seqs, DEV)
+else:
+    tel, ntp, wts, loc = all_telescoped(cfg, T_stack, pis, M_comp, val_seqs)
 np.savez(os.path.join(OUT, "ground_truth.npz"),
          telescoped=tel, optimal_ntp=ntp, posterior_weights=wts, local_beliefs=loc)
 
