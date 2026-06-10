@@ -8,3 +8,12 @@
 __pycache__/
 .ipynb_checkpoints/
 .DS_Store
+
+# Figures are generated locally, NOT uploaded (notebooks/.ipynb ARE tracked)
+*.png
+*.pdf
+*.jpg
+*.jpeg
+*.svg
+*.gif
+*.html
