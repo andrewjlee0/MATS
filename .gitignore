@@ -4,4 +4,6 @@
 *.npy
 *.log
 *venv
-/results
+/results__pycache__/
+.ipynb_checkpoints/
+.DS_Store
