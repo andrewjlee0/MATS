@@ -19,6 +19,7 @@ Andrew's MATS work with Adam Shai & Paul Riechers (Simplex). This repo also host
 - Probe OLS **with a bias term** (a real past bug was the bias-less pinv solution).
 - Watch the known footguns: leading-space tokenization (align KL by position), full-vocab KL fp32 OOM on big models, Gemma logit softcapping for tuned-lens correctness, float underflow in long belief filters (renormalize forward vector, use float64).
 - R² is **not comparable as a level across differently-encoded predictors** — lean on an independent selector/modulator, not a raw level.
+- **Optimize slow files, but never at the cost of correctness.** If a script is making little progress relative to how much work it has to do, optimize it as hard as possible (vectorize, batch, move to GPU, cache, better algorithm). The constraint: every optimization must be *numerically/computationally equivalent* to the unoptimized version — no silent approximations, lowered precision, dropped terms, or subsampling that change the result. When an optimization might trade accuracy for speed, **err on the side of accuracy** and flag the tradeoff rather than taking it silently. Fast *and* correct is the goal; correct wins when they conflict.
 
 ## Plotting
 Use the `figure` skill (seaborn-only, interactive HTML, 95% CI, consult on the averaging unit). Don't deviate from his figure house style.
