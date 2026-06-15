@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//workspace/**)",
+      "Bash(mkdir -p conversations_export)",
+      "Bash(python3 -c \"import zipfile; z=zipfile.ZipFile\\('conversations.zip'\\); z.extractall\\('conversations_export'\\); print\\('\\\\n'.join\\(z.namelist\\(\\)[:50]\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(mkdir -p cai_export)",
+      "Bash(du -h cai_export/*.json cai_export/projects/*.json)",
+      "Bash(mkdir -p convo_dump)",
+      "Bash(python3)",
+      "Read(//root/.claude/**)",
+      "Bash(python3 -c \"import mpld3; print\\('mpld3', mpld3.__version__\\)\")",
+      "Bash(python3 -c \"import plotly; print\\('plotly', plotly.__version__\\)\")",
+      "Bash(python3 -c \"import seaborn; print\\('seaborn', seaborn.__version__\\)\")",
+      "Bash(mkdir -p /workspace/conversations)",
+      "Bash(mv /workspace/cai_export /workspace/convo_dump /workspace/convo_dump_rest /workspace/conversations/)",
+      "Bash(git -C /workspace rev-parse --show-toplevel)",
+      "Read(//root/**)",
+      "Bash(set -e)",
+      "Bash(mkdir -p __TRACKED_VAR__/-workspace)",
+      "Bash(mv __TRACKED_VAR__/-workspace-MATS/memory __TRACKED_VAR__/-workspace/memory)",
+      "Bash(ln -s ../-workspace/memory __TRACKED_VAR__/-workspace-MATS/memory)",
+      "Bash(awk '{print $1, $6}')",
+      "Bash(mount)",
+      "Bash(command -v curl)",
+      "Bash(echo \"curl: $\\(command -v curl || echo no\\)\")",
+      "Bash(command -v wget)",
+      "Bash(echo \"wget: $\\(command -v wget || echo no\\)\")",
+      "Bash(command -v apt-get)",
+      "Bash(git grep *)",
+      "Bash(sed -E 's/hf_[A-Za-z0-9]{6}[A-Za-z0-9]+/hf_XXXXXX<REDACTED>/g')",
+      "Bash(sed -i -E 's/hf_[A-Za-z0-9]{20,}/REDACTED_SET_VIA_ENV/g' experiments/interplay/pca_per_layer.ipynb)",
+      "Bash(grep -cE 'hf_[A-Za-z0-9]{20,}' experiments/interplay/pca_per_layer.ipynb)",
+      "Bash(git reset *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Back up interplay experiments + run scripts; gitignore results/junk \\(HF token redacted\\) *)",
+      "Bash(git push *)"
+    ]
+  }
+}
