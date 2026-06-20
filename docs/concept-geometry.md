@@ -26,7 +26,22 @@ the question resolves.
 ## 1. Definitions, stated precisely
 
 The single most common error is treating "manifold" as a synonym for "smooth blob" or "closed
-shape." It is neither. The precise ladder:
+shape." It is neither. There is **one organizing question** behind the entire classification:
+*what does a small neighborhood of a point look like?* That local model — and how it is allowed to
+vary from point to point — defines every class below.
+
+| Class | Local model: a neighborhood of a point is homeomorphic to… |
+|---|---|
+| discrete set / **0-manifold** | a point ($\mathbb{R}^0$) |
+| **manifold**, dim $n$ | all of $\mathbb{R}^n$ (same model at every point) |
+| **manifold with boundary** | $\mathbb{R}^n$ **or** a half-space $\mathbb{H}^n=\{x_n\ge 0\}$ |
+| **manifold with corners** | $\mathbb{R}^n$, half-space, **or** an orthant $[0,\infty)^k\times\mathbb{R}^{n-k}$ |
+| **stratified space** | (a stratum) $\times$ (cone on a lower-dimensional link): the model *changes* between points but is constant *along* each stratum |
+| **fractal / IFS attractor** | self-similar / branching at every scale — **no Euclidean model at any point** |
+
+These classes nest: $0$-manifold $\subset$ manifold $\subset$ manifold-with-boundary $\subset$
+manifold-with-corners $\subset$ stratified space, each strictly larger. Fractals sit *outside* the
+whole tower. The detailed entries:
 
 - **Topological manifold (dimension $n$):** a (Hausdorff, second-countable) space in which *every
   point has a neighborhood homeomorphic to $\mathbb{R}^n$*. The defining property is **locally
@@ -34,30 +49,51 @@ shape." It is neither. The precise ladder:
   - $\mathbb{R}^n$, an infinite line, and the plane are all manifolds. **Manifolds need not be
     compact or bounded.**
   - A **circle** and a **sphere** are manifolds that happen to be compact.
+  - The dimension $n$ is **well-defined** (invariance of domain, Brouwer): no space is both an
+    $m$- and an $n$-manifold for $m\neq n$. This is what makes "the dimension of a representation"
+    a meaningful quantity at all.
 
 - **"Closed" is a trap word.** It means two unrelated things: (a) a topologically closed *set*,
   and (b) a **closed manifold** = *compact and without boundary* (circle, sphere, torus). A line
   is a manifold but not a *closed manifold*. Avoid the bare word "closed" in geometry discussions.
 
 - **Manifold with boundary:** boundary points get charts onto a *half-space* $\{x_n \ge 0\}$
-  instead of all of $\mathbb{R}^n$. A filled disk is the canonical example.
+  instead of all of $\mathbb{R}^n$. A filled disk is the canonical example. The boundary
+  $\partial M$ is itself an $(n-1)$-manifold *without* boundary (the boundary of a disk is a
+  circle).
 
-- **Manifold with corners:** corner points get charts onto an *orthant* $[0,\infty)^n$. A filled
-  triangle (the 2-simplex) is the canonical example — edges are half-space points, vertices are
-  corner points.
+- **Manifold with corners:** corner points get charts onto an *orthant* $[0,\infty)^k \times
+  \mathbb{R}^{n-k}$. A filled triangle (the 2-simplex $\Delta^2$) is the canonical example —
+  interior points see $\mathbb{R}^2$, edges see a half-space ($k=1$), vertices see a quadrant
+  ($k=2$). Probability simplices $\Delta^{n-1}$ are the case that matters here.
 
 - **Smooth manifold:** a topological manifold with a compatible differentiable atlas, so tangent
   spaces (local *linearizations*) exist. "Locally linear" in the ML sense (LLE, tangent-plane
   approximation) is really *smooth*-manifold language.
 
-- **Stratified space:** a space decomposed into a union of manifolds ("strata") of *possibly
-  different dimensions*, glued along their boundaries (e.g. a polytope = 2-faces ∪ edges ∪
-  vertices). The right framework for *mixed-dimension, piecewise-manifold* objects.
+- **Stratified space:** a space partitioned into manifold pieces ("strata") of *possibly different
+  dimensions*, subject to two conditions that keep it well-behaved: the **frontier condition** (the
+  closure of any stratum is a union of strata) and **local triviality along strata** (the local
+  model is constant as you move within a stratum, and degenerates only when you cross to a
+  lower-dimensional one). A polytope is the clean case: open top-cell ∪ open faces ∪ edges ∪
+  vertices. An ordinary manifold is the degenerate case of a single stratum. This is the right
+  framework for *mixed-dimension, piecewise-manifold* objects.
 
-- **Fractal / IFS attractor:** a self-similar set, typically of *non-integer Hausdorff
-  dimension*, that is **not locally Euclidean anywhere** and therefore **not a manifold of any
-  kind**. The attractor of an Iterated Function System (a finite set of contraction maps) is the
-  prototypical example.
+- **Fractal / IFS attractor:** by **Hutchinson's theorem**, any finite set of contractions
+  $f_1,\dots,f_k$ on a complete metric space has a *unique* nonempty compact **attractor**
+  $A=\bigcup_i f_i(A)$. Under the open-set condition its Hausdorff dimension is the *similarity
+  dimension* $s$ solving $\sum_i r_i^{\,s}=1$ (Sierpinski triangle: $k=3$ maps, ratio $r=\tfrac12$
+  $\Rightarrow s=\log 3/\log 2 \approx 1.585$).
+  - **Why it is not a manifold:** it is **not locally Euclidean at any point** — every
+    neighborhood keeps branching at all scales, so no chart onto $\mathbb{R}^n$ exists. The clean
+    *certificate* is dimensional: a manifold has Hausdorff dimension equal to its (integer)
+    topological dimension, whereas the attractor's Hausdorff dimension is non-integer (and exceeds
+    its topological dimension). Non-integer dimension is therefore not a curiosity but a *proof* of
+    non-manifoldness.
+  - **Belief-state tie-in:** the Bayesian belief-update maps — one contraction per emission
+    symbol — *are* exactly such an IFS on the simplex, and the reachable belief set is precisely
+    their attractor. So "the belief geometry is a fractal" is a statement about the *process*
+    (its update maps and their similarity dimension), not an artifact of finite sampling.
 
 - **0-manifold:** a discrete set of points. Worth stating explicitly because it dissolves a
   common confusion: **"discrete" does not mean "non-manifold."** A finite set of clusters is a
@@ -73,7 +109,7 @@ shape." It is neither. The precise ladder:
 | "The corners of a simplex aren't locally linear." | ✓ — that makes it a *manifold with corners*. |
 | "A circle and a line are locally linear everywhere." | ✓ — both are 1-manifolds. |
 | "Discrete/disconnected clusters can't be a manifold." | ✗ — disjoint points/blobs form a (disconnected) 0-manifold. |
-| "A fractal is just a weird manifold." | ✗ — non-integer dimension ⇒ not a manifold at all. |
+| "A fractal is just a weird manifold." | ✗ — not locally Euclidean anywhere (non-integer Hausdorff dimension is the certificate) ⇒ not a manifold at all. |
 
 ---
 
@@ -88,27 +124,37 @@ shape." It is neither. The precise ladder:
    - **Functional geometry** — the geometry the model's downstream computation *uses/respects*,
      which can extend smoothly into regions no data ever visits.
 
-2. **Which limit?** *Any finite point cloud is simultaneously "a discrete set of points" and "a
-   sample of a manifold."* All real data is finite, so manifold-ness is **undecidable from data
-   alone**. You must specify the infinite-data / generative limit: does the reachable set converge
-   to a fractal? a circle? does it stay discrete?
+2. **Which limit?** Manifold-ness is a property of an *infinite* object, so it is **undecidable
+   from a finite sample**: any finite point cloud lies on manifolds of *every* dimension from $0$
+   (the points themselves) up to the ambient $N$, so "the dimension" is not even defined for finite
+   data. The well-posed object is the **support of the representation measure** induced by the
+   generating process — equivalently, the **attractor of the representation dynamics** — not the
+   sample. (For an ergodic process the closure of the occupied set *is* this attractor.) Only once
+   you name the process and pass to this limit does the question "fractal? circle? discrete?" have
+   an answer.
 
-3. **Which criterion?**
-   - **Descriptive** — you *can fit* the geometry (you can fit a circle to almost anything).
-   - **Causal** — the model's computation *respects* the geometry: interventions/interpolations
-     along it move predictions coherently. This is the criterion that actually matters, and the one
-     that connects the math to mechanistic interpretability.
+3. **Which criterion?** Two genuinely different bars, and the gap between them is the whole point:
+   - **Descriptive** — the geometry *fits the points*: there exists a (low-distortion, smooth)
+     coordinate map from the occupied set onto $G$. This is cheap — you can fit a circle to almost
+     anything.
+   - **Causal** — the geometry is *used by the computation*: the model's readout **factors through
+     coordinates on $G$** and behaves consistently with $G$'s structure (continuity along it, and
+     **equivariance** under whatever group/metric $G$ carries), as verified by **intervention** —
+     patch or steer along $G$ and check that predictions move the way $G$ predicts, including at
+     interpolated points the data never visits.
 
-   The causal criterion is doing more than ranking the two options — it is what *picks out which
-   geometry the system actually has*. Descriptively, many geometries fit the same points; it is the
-   causal test that decides which one is real for the model. In the days example, the discrete
-   points and the circle are *both* descriptively present, and only the causal question ("is the
-   in-between used to compute day arithmetic?") tells you the circle is the functional geometry
-   rather than an artifact of the layout. In this sense **a geometry is not just observed, it is
-   determined by what the computation uses** — which is why §7 makes the causal test the central
-   open methodological item.
+   The causal criterion does more than rank the two — **it is what *picks out which geometry the
+   system actually has*.** Descriptively, many geometries fit the same points; the intervention
+   test decides which one is real *for the model*. In the days example the discrete points and the
+   circle are *both* descriptively present, and only the causal question ("is the in-between used to
+   compute day arithmetic?") tells you the circle is the functional geometry rather than an artifact
+   of the layout. So **a geometry is not merely observed, it is determined by what the computation
+   uses** — which is why §7 makes the intervention test the central open methodological item.
 
-**Most "is it a manifold?" confusions come from answering for different columns of question 1.**
+**A fully specified claim is therefore a triple** — *(which set, which limiting process, which
+criterion)* — and "is concept $X$ a manifold?" is a function of that triple, not a property of $X$
+alone. Most "is it a manifold?" confusions come from answering for different columns of question 1
+(or silently mixing the descriptive and causal bars).
 
 ---
 
