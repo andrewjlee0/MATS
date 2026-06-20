@@ -1,8 +1,7 @@
 # The Geometry of Concepts in Activation Space — a working vocabulary
 
-**Status:** living document. Started 2026-06-20 (Andrew + collaborators, out of a MATS dinner
-discussion). Corrections, counterexamples, and new rows in the example table are all welcome —
-edit freely.
+**Status:** living document. Started 2026-06-20, out of a MATS dinner conversation. Corrections,
+counterexamples, and new rows in the example table are all welcome — edit freely.
 
 **Audience:** interpretability researchers, especially the belief-state-geometry crowd. Assumes
 light familiarity with HMMs / mixed-state presentations but tries to define terms as it goes.
@@ -12,15 +11,15 @@ light familiarity with HMMs / mixed-state presentations but tries to define term
 ## 0. Why this document exists
 
 There is no consensus on what we mean when we say a concept is "a manifold," "a feature," "a
-direction," or "a topological structure." The terms are used loosely and interchangeably, and
-debates about whether some representation "is or isn't a manifold" often turn out to be people
-pointing at *different objects* with the *same word*. This document tries to pin the vocabulary
-down precisely enough that the well-known examples (belief-state fractals, days-of-the-week
-circles, modular arithmetic, binary concepts) can all be described without contradiction.
+direction," or "a topological structure." The terms are used loosely and interchangeably, and the
+question of whether some representation "is or isn't a manifold" often turns on *which object* the
+*same word* is pointing at. This document tries to pin the vocabulary down precisely enough that
+the well-known examples (belief-state fractals, days-of-the-week circles, modular arithmetic,
+binary concepts) can all be described without contradiction.
 
 The central claim: **"is concept X a manifold?" is not a well-posed question until you say
 *which set*, *in which limit*, and *under which criterion* you mean.** Once you fix those three,
-the disagreements dissolve.
+the question resolves.
 
 ---
 
@@ -100,7 +99,16 @@ shape." It is neither. The precise ladder:
      along it move predictions coherently. This is the criterion that actually matters, and the one
      that connects the math to mechanistic interpretability.
 
-**Most "is it a manifold?" disagreements are people answering for different columns of question 1.**
+   The causal criterion is doing more than ranking the two options — it is what *picks out which
+   geometry the system actually has*. Descriptively, many geometries fit the same points; it is the
+   causal test that decides which one is real for the model. In the days example, the discrete
+   points and the circle are *both* descriptively present, and only the causal question ("is the
+   in-between used to compute day arithmetic?") tells you the circle is the functional geometry
+   rather than an artifact of the layout. In this sense **a geometry is not just observed, it is
+   determined by what the computation uses** — which is why §7 makes the causal test the central
+   open methodological item.
+
+**Most "is it a manifold?" confusions come from answering for different columns of question 1.**
 
 ---
 
@@ -135,7 +143,7 @@ A representation is a *point* in this multi-axis space, not a label on the topol
 | Binary concept (e.g. `is_dog`) | 2 clusters / one direction | linear threshold; no meaningful interpolation | — | discrete / linear, not curved |
 | Continuous magnitude (sentiment, number line, brightness) | a curve / interval | 1-manifold; interpolation *is* meaningful | ordered / affine | a genuine manifold |
 
-The recurring lesson: **occupied geometry and functional geometry routinely disagree.** Days are
+The recurring lesson: **occupied geometry and functional geometry routinely differ.** Days are
 discrete points (occupied) on a causally-real circle (functional). Belief states are a fractal
 (occupied) embedded *linearly* in an affine subspace (functional). "Linearly decodable" and "is a
 manifold" are **independent** properties — the Mess3 activations occupy a *fractal subset of a flat
@@ -156,8 +164,8 @@ finding worth reporting.**
 
 - **"Manifold" (as a catch-all): invalid.** It excludes the two cases we care about most — the
   *corners* of the belief simplex (manifold-*with-corners*, not a manifold) and the *fractal*
-  reachable set (not a manifold of any kind). Using "manifold" as the umbrella is exactly the
-  overclaim that started the dinner argument.
+  reachable set (not a manifold of any kind). Using "manifold" as the umbrella is the overclaim
+  worth resisting.
 
 - **"Stratified manifold / stratified space": the best umbrella for the *piecewise-manifold*
   family — but not for everything.** It correctly covers polytopes/simplices, unions of manifolds
