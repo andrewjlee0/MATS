@@ -95,6 +95,16 @@ whole tower. The detailed entries:
     their attractor. So "the belief geometry is a fractal" is a statement about the *process*
     (its update maps and their similarity dimension), not an artifact of finite sampling.
 
+- **"Being a manifold" vs "lying on a manifold" — different questions.** A set can fail to be a
+  manifold and still *sit inside* one, and that is exactly the case for belief geometry: the MSP
+  attractor **is not** a manifold, but it **lies on** the 2-simplex $\Delta^2$ (equivalently, inside
+  a 2-D affine subspace of the residual stream — this containment *is* the "linearly represented"
+  result). The enclosing manifold cannot be made arbitrarily thin: any $k$-manifold containing a set
+  of Hausdorff dimension $d_H$ requires $k\ge d_H$, so a fractal with $d_H\approx1.585$ **cannot lie
+  on a curve** ($k=1$); the minimal enclosing manifold has dimension $2$. This is the §2
+  occupied-vs-functional split in one line — *occupied set = fractal (not a manifold); enclosing /
+  functional geometry = a manifold the fractal lives on.*
+
 - **0-manifold:** a discrete set of points. Worth stating explicitly because it dissolves a
   common confusion: **"discrete" does not mean "non-manifold."** A finite set of clusters is a
   (disconnected) 0-manifold. What actually breaks manifold-ness is *mixed dimension* (→ stratified)
@@ -320,19 +330,37 @@ to the affine/$GL$ group — which is exactly why we say they are "**linearly de
 - The *topological/affine/algebraic* structure survives the gauge group; specific coordinates and
   raw distances do not. Report the gauge-invariant structure.
 
-### So is parameter space "more fundamental"? Two honest answers
+### So is parameter space "more fundamental"? First disambiguate "fundamental"
 
-- **For learning / identifiability / generalization: yes.** The map $\theta\mapsto$ function is not
-  just symmetric but **singular** (degenerate Jacobian on and beyond the symmetry orbits). The
-  geometry of parameter space near these singularities is what governs what gets learned — this is
-  **Watanabe's singular learning theory** (RLCT / learning coefficient). At this level the
-  representation is downstream and partly *underdetermined* by behavior.
-- **For mechanism / "what concept is represented": often no — the representation geometry is the
-  *more canonical* object**, because it can be pinned by the **task** rather than the weights.
-  Computational mechanics says optimal prediction $\Rightarrow$ belief states $\Rightarrow$ the
-  mixed-state-presentation geometry; so *any* network that predicts well must carry that geometry
-  (up to the gauge group), whatever its parameters. There the geometry is an **invariant of the
-  problem**, and the parameters are the redundant description.
+The word hides two different notions, and the claim is true under one and false under the other:
+
+- **Fundamental = generative substrate** — causally upstream; what is actually stored; what training
+  optimizes; what governs learning and generalization.
+- **Fundamental = invariant essence** — what is preserved / canonical / "the real thing," with the
+  redundant description quotiented away.
+
+**A note on the premise.** The argument usually offered — *"different functions produce the same
+representations"* — is, read literally, a statement that the representation is the **canonical
+quotient** you keep after modding out the differences between functions. That is a gauge-style
+argument, and it supports **representation-primacy in the *essence* sense** — the opposite of the
+conclusion it is used for. It supports *parameter*-primacy only via the *separate* substrate
+argument. So "many functions → same representation, therefore parameters are more fundamental" does
+not follow from its own premise; the two senses must be kept apart. With that done:
+
+- **Substrate sense — parameters win.** The map $\theta\mapsto$ function is not merely symmetric but
+  **singular**: its Jacobian degenerates on the symmetry orbits *and beyond them*, so the preimage of
+  a function is a positive-dimensional, often singular variety rather than a discrete set of points.
+  **Watanabe's singular learning theory** makes this the central object — the **real log canonical
+  threshold (RLCT) / learning coefficient** replaces parameter-counting in the asymptotics of Bayesian
+  generalization, and the *geometry of these singularities* controls what is learned, when (the basis
+  of **developmental interpretability** — staged learning, phase transitions, the Timaeus program).
+  At this level the representation is downstream and partly *underdetermined* by behavior, and
+  parameter-space geometry is genuinely primary.
+- **Essence sense — the representation wins, when the task pins it.** Computational mechanics says
+  optimal prediction $\Rightarrow$ belief states $\Rightarrow$ the mixed-state-presentation geometry;
+  so *any* network that predicts well must carry that geometry (up to the gauge group), whatever its
+  parameters. There the geometry is an **invariant of the problem**, and the parameters are the
+  redundant description.
 
 ### The tension, stated cleanly
 
@@ -346,6 +374,9 @@ Two true statements coexist:
 So "fundamental" is **not a single ranking**. It depends on what you hold fixed: the *weights*
 (then parameter space is primary and representations are derived) or the *task* (then the
 representation geometry is the canonical invariant and the weights are the redundant coordinates).
+This document's own lean: parameter-space (singular) geometry is the right level for *how and when*
+structure forms and generalizes; the task-pinned representation geometry is the right level for
+*what concept is represented*. The dinner claim wins the first question, not the second.
 
 ### Don't conflate the two symmetries
 
@@ -375,6 +406,7 @@ They point in opposite methodological directions and should never be merged.
   measure it with a gauge-invariant comparison (readout-induced metric, or a CKA-style invariant),
   not raw activation distances.
 - (§7) Pin down citations for the parameter/representation/behavior section: singular learning theory
-  (Watanabe), permutation symmetry / mode connectivity ("git re-basin", Ainsworth et al.),
+  (Watanabe; RLCT / learning coefficient), developmental interpretability / phase transitions
+  (Timaeus), permutation symmetry / mode connectivity ("git re-basin", Ainsworth et al.),
   representation similarity up to transform (CKA, Kornblith et al.), and computational mechanics
   (Crutchfield) for the task-pins-geometry direction.
