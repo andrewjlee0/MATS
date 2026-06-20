@@ -149,7 +149,7 @@ whole tower. The detailed entries:
    circle are *both* descriptively present, and only the causal question ("is the in-between used to
    compute day arithmetic?") tells you the circle is the functional geometry rather than an artifact
    of the layout. So **a geometry is not merely observed, it is determined by what the computation
-   uses** — which is why §7 makes the intervention test the central open methodological item.
+   uses** — which is why §8 makes the intervention test the central open methodological item.
 
 **A fully specified claim is therefore a triple** — *(which set, which limiting process, which
 criterion)* — and "is concept $X$ a manifold?" is a function of that triple, not a property of $X$
@@ -274,7 +274,91 @@ is one of three layers, not the whole thing.
 
 ---
 
-## 7. Open questions / TODO
+## 7. Parameter space vs. representation space vs. behavior — which is fundamental, and what is gauge
+
+A recurring objection: *parameter space is more fundamental than representation space, because many
+different functions (parameter settings) can produce the same representations.* This is correct and
+important, and it slots in directly above the "which set?" question of §2 as a question of **which
+level of description** you are working at.
+
+### The tower of many-to-one maps
+
+$$\text{parameters } \theta\in\mathbb{R}^P \;\longrightarrow\; \text{representation geometry}
+\;\longrightarrow\; \text{function / behavior (I/O map)}$$
+
+Every arrow is **many-to-one**, so each level is more abstract and less redundant than the one
+before. Parameter space is the most redundant description; behavior is the most invariant; the
+representation geometry is the middle layer we can actually measure and where computation happens.
+A claim about "the geometry" should say not only *which set* (§2.1) but *which level of this tower*,
+and *modulo which group* (below).
+
+### Why the first arrow collapses: gauge symmetry of parameters
+
+Many distinct $\theta$ compute the *exact same function*, related by **parameter symmetries**:
+
+- permutation of hidden units; ReLU **positive rescaling** ($W\to cW$ in, $\tfrac1c$ out); tanh
+  **sign flips**;
+- the **$GL$ freedom inside attention**: $W_Q,W_K$ enter only through $W_Q^{\!\top}W_K$ and
+  $W_O,W_V$ only through $W_OW_V$, so $W_Q\to AW_Q,\,W_K\to A^{-\top}W_K$ (and analogously for
+  $W_O,W_V$) is invisible to the function;
+- softmax **shift** invariance; **LayerNorm** scale invariance.
+
+These form a group $G$ acting on $\Theta$; the honest function space is the quotient $\Theta/G$
+(the gauge-theory view of networks). *Beyond* exact symmetry, genuinely different circuits can
+compute the same function — degeneracy that is not a symmetry at all.
+
+### The second arrow has gauge freedom too
+
+Representation geometry is itself only defined **up to the group the downstream readout cannot
+see**. A linear probe/readout can absorb any invertible linear map, so beliefs are defined only up
+to the affine/$GL$ group — which is exactly why we say they are "**linearly decodable**" rather than
+"located at coordinates $x$." Two consequences:
+
+- **Raw Euclidean distances in activation space are gauge-dependent.** A $GL$ change of basis warps
+  them. So the **metric axis of §3 is only meaningful relative to a readout** — use the
+  readout-induced metric (or Fisher information), not the ambient dot product.
+- The *topological/affine/algebraic* structure survives the gauge group; specific coordinates and
+  raw distances do not. Report the gauge-invariant structure.
+
+### So is parameter space "more fundamental"? Two honest answers
+
+- **For learning / identifiability / generalization: yes.** The map $\theta\mapsto$ function is not
+  just symmetric but **singular** (degenerate Jacobian on and beyond the symmetry orbits). The
+  geometry of parameter space near these singularities is what governs what gets learned — this is
+  **Watanabe's singular learning theory** (RLCT / learning coefficient). At this level the
+  representation is downstream and partly *underdetermined* by behavior.
+- **For mechanism / "what concept is represented": often no — the representation geometry is the
+  *more canonical* object**, because it can be pinned by the **task** rather than the weights.
+  Computational mechanics says optimal prediction $\Rightarrow$ belief states $\Rightarrow$ the
+  mixed-state-presentation geometry; so *any* network that predicts well must carry that geometry
+  (up to the gauge group), whatever its parameters. There the geometry is an **invariant of the
+  problem**, and the parameters are the redundant description.
+
+### The tension, stated cleanly
+
+Two true statements coexist:
+
+1. **Degeneracy from below:** parameters $\to$ representation is many-to-one (different functions,
+   same representation).
+2. **Canonicity from above:** task $\to$ representation geometry is (nearly) one-to-one (the same
+   geometry is *forced* by the prediction problem).
+
+So "fundamental" is **not a single ranking**. It depends on what you hold fixed: the *weights*
+(then parameter space is primary and representations are derived) or the *task* (then the
+representation geometry is the canonical invariant and the weights are the redundant coordinates).
+
+### Don't conflate the two symmetries
+
+- **Intrinsic / algebraic symmetry** (§3): the cyclic group of days, part of *the concept* —
+  structure to be **discovered**.
+- **Gauge symmetry** (this section): permutation / rescaling / $GL$ — redundancy of *the
+  description* — structure to be **quotiented out**.
+
+They point in opposite methodological directions and should never be merged.
+
+---
+
+## 8. Open questions / TODO
 
 - Make the causal criterion (§2.3) operational for our setting: patch an *interpolated, off-attractor*
   belief state into the residual stream and test whether predictions move along the simplex
@@ -286,3 +370,11 @@ is one of three layers, not the whole thing.
   case?), and any concept where occupied and functional geometry are claimed to *coincide*.
 - Decide whether "stratified space" or "concept geometry (as a tuple)" is the term we put forward to
   the wider community.
+- (§7) Test the **canonicity-from-above** claim directly: is the recovered belief geometry invariant
+  across seeds/architectures *up to the gauge group*? A positive result is a universality claim;
+  measure it with a gauge-invariant comparison (readout-induced metric, or a CKA-style invariant),
+  not raw activation distances.
+- (§7) Pin down citations for the parameter/representation/behavior section: singular learning theory
+  (Watanabe), permutation symmetry / mode connectivity ("git re-basin", Ainsworth et al.),
+  representation similarity up to transform (CKA, Kornblith et al.), and computational mechanics
+  (Crutchfield) for the task-pins-geometry direction.
